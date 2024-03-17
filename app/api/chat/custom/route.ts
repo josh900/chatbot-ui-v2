@@ -43,7 +43,9 @@ export async function POST(request: Request) {
       stream: false
     })
 
-    return new Response(JSON.stringify(response), {
+    const assistantMessage = response.choices[0].message.content
+
+    return new Response(JSON.stringify({ content: assistantMessage }), {
       status: 200,
       headers: {
         'Content-Type': 'application/json'
