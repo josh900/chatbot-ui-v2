@@ -41,7 +41,7 @@ export async function POST(request: Request) {
       model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
       messages: messages as ChatCompletionCreateParamsBase["messages"],
       temperature: chatSettings.temperature,
-      stream: true
+      stream: false
     })
 
     const stream = OpenAIStream(response)
