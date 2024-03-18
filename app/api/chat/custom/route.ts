@@ -17,17 +17,14 @@ export async function POST(request: Request) {
     customModelId: string
   }
 
-  // Send an initial response within 25 seconds
-  const initialResponse = new Response(
-    JSON.stringify({ message: "Request received. Processing..." }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
+  // Send an initial response to the client
+  const initialResponse = new Response(JSON.stringify({ message: "Request received. Processing..." }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json'
     }
-  )
-  await initialResponse.flush()
+  })
+  await initialResponse.send()
 
   try {
     const supabaseAdmin = createClient<Database>(
@@ -60,11 +57,14 @@ export async function POST(request: Request) {
       })
 
       const assistantMessage = response.choices[0].message.content
-      return new Response(assistantMessage, {
-        status: 200,
+
+      // Send the complete response to the client
+      await fetch(request.url, {
+        method: 'POST',
         headers: {
           'Content-Type': 'text/plain'
-        }
+        },
+        body: assistantMessage
       })
     } else {
       // Process response for other custom models with streaming
@@ -76,7 +76,15 @@ export async function POST(request: Request) {
       })
 
       const stream = OpenAIStream(response)
-      return new StreamingTextResponse(stream)
+
+      // Send the streaming response to the client
+      await fetch(request.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: stream
+      })
     }
   } catch (error: any) {
     let errorMessage = error.message || "An unexpected error occurred"
@@ -90,11 +98,12 @@ export async function POST(request: Request) {
         "Custom API Key is incorrect. Please fix it in your profile settings."
     }
 
-    return new Response(JSON.stringify({ message: errorMessage }), {
-      status: errorCode,
+    await fetch(request.url, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ message: errorMessage })
     })
   }
 }
