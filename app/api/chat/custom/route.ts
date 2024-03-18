@@ -6,7 +6,7 @@ import { ServerRuntime } from "next"
 import OpenAI from "openai"
 import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
 
-export const runtime: ServerRuntime = "edge"
+export const runtime = "edge"
 
 export async function POST(request: Request) {
   const json = await request.json()
@@ -15,6 +15,15 @@ export async function POST(request: Request) {
     messages: any[]
     customModelId: string
   }
+
+  // Send an initial response to the client
+  const initialResponse = new Response(JSON.stringify({ message: "Request received. Processing..." }), {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/json'
+    }
+  })
+  await initialResponse.send()
 
   try {
     const supabaseAdmin = createClient<Database>(
@@ -47,11 +56,14 @@ export async function POST(request: Request) {
       })
 
       const assistantMessage = response.choices[0].message.content
-      return new Response(assistantMessage, {
-        status: 200,
+
+      // Send the complete response to the client
+      await fetch(request.url, {
+        method: 'POST',
         headers: {
           'Content-Type': 'text/plain'
-        }
+        },
+        body: assistantMessage
       })
     } else {
       // Process response for other custom models with streaming
@@ -63,7 +75,15 @@ export async function POST(request: Request) {
       })
 
       const stream = OpenAIStream(response)
-      return new StreamingTextResponse(stream)
+
+      // Send the streaming response to the client
+      await fetch(request.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain'
+        },
+        body: stream
+      })
     }
   } catch (error: any) {
     let errorMessage = error.message || "An unexpected error occurred"
@@ -77,11 +97,12 @@ export async function POST(request: Request) {
         "Custom API Key is incorrect. Please fix it in your profile settings."
     }
 
-    return new Response(JSON.stringify({ message: errorMessage }), {
-      status: errorCode,
+    await fetch(request.url, {
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ message: errorMessage })
     })
   }
 }
