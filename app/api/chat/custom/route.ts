@@ -17,18 +17,6 @@ export async function POST(request: Request) {
     customModelId: string
   }
 
-  // Send an initial response within 25 seconds
-  const initialResponse = new Response(
-    JSON.stringify({ message: "Request received. Processing..." }),
-    {
-      status: 200,
-      headers: {
-        "Content-Type": "application/json",
-      },
-    }
-  )
-  await initialResponse.flush()
-
   try {
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
