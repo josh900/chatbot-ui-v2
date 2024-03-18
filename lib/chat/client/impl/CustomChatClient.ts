@@ -1,23 +1,20 @@
+import { ApiError } from "@/lib/error/ApiError"
 import { Database } from "@/supabase/types"
 import { ChatSettings } from "@/types"
 import { createClient } from "@supabase/supabase-js"
 import { OpenAIStream, StreamingTextResponse } from "ai"
-import { ServerRuntime } from "next"
 import OpenAI from "openai"
 import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
+import { ChatClientBase } from "../ChatClientBase"
 
-export const runtime: ServerRuntime = "edge"
+export class CustomChatClient extends ChatClientBase {
+  private customOpenAI: OpenAI | undefined
 
+  async initialize(customModelId?: string) {
+    if (!customModelId) {
+      throw new Error("Custom model ID is not provided")
+    }
 
-export async function POST(request: Request) {
-  const json = await request.json()
-  const { chatSettings, messages, customModelId } = json as {
-    chatSettings: ChatSettings
-    messages: any[]
-    customModelId: string
-  }
-
-  try {
     const supabaseAdmin = createClient<Database>(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -33,40 +30,54 @@ export async function POST(request: Request) {
       throw new Error(error.message)
     }
 
-    const custom = new OpenAI({
+    this.customOpenAI = new OpenAI({
       apiKey: customModel.api_key || "",
       baseURL: customModel.base_url
     })
+  }
 
-    if (customModel.base_url.includes("https://skoop.app.n8n.cloud")) {
+  async generateChatCompletion(
+    chatSettings: ChatSettings,
+    messages: any[]
+  ): Promise<any> {
+    if (!this.customOpenAI) {
+      throw new Error("Custom OpenAI client is not initialized")
+    }
+
+    if (this.customOpenAI.baseURL.includes("https://skoop.app.n8n.cloud")) {
       // Process response for custom models hosted on skoop.app.n8n.cloud
-      const response = await custom.chat.completions.create({
+      return this.customOpenAI.chat.completions.create({
         model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
         messages: messages as ChatCompletionCreateParamsBase["messages"],
         temperature: chatSettings.temperature,
         stream: false
       })
-
-      const assistantMessage = response.choices[0].message.content
-      return new Response(assistantMessage, {
-        status: 200,
-        headers: {
-          'Content-Type': 'text/plain'
-        }
-      })
     } else {
       // Process response for other custom models with streaming
-      const response = await custom.chat.completions.create({
+      return this.customOpenAI.chat.completions.create({
         model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
         messages: messages as ChatCompletionCreateParamsBase["messages"],
         temperature: chatSettings.temperature,
         stream: true
       })
-
-      const stream = OpenAIStream(response)
-      return new StreamingTextResponse(stream)
     }
-  } catch (error: any) {
+  }
+
+  async generateChatCompletionStream(
+    chatSettings: ChatSettings,
+    messages: any[]
+  ): Promise<StreamingTextResponse> {
+    const response = await this.generateChatCompletion(chatSettings, messages)
+
+    if (this.customOpenAI?.baseURL.includes("https://skoop.app.n8n.cloud")) {
+      const assistantMessage = response.choices[0].message.content
+      return new StreamingTextResponse(assistantMessage)
+    } else {
+      return new StreamingTextResponse(OpenAIStream(response))
+    }
+  }
+
+  handleError(error: ApiError): ApiError {
     let errorMessage = error.message || "An unexpected error occurred"
     const errorCode = error.status || 500
 
@@ -78,11 +89,6 @@ export async function POST(request: Request) {
         "Custom API Key is incorrect. Please fix it in your profile settings."
     }
 
-    return new Response(JSON.stringify({ message: errorMessage }), {
-      status: errorCode,
-      headers: {
-        'Content-Type': 'application/json'
-      }
-    })
+    return new ApiError(errorMessage, errorCode)
   }
 }
