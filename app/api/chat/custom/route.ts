@@ -17,14 +17,17 @@ export async function POST(request: Request) {
     customModelId: string
   }
 
-  // Send an initial response to the client
-  const initialResponse = new Response(JSON.stringify({ message: "Request received. Processing..." }), {
-    status: 200,
-    headers: {
-      'Content-Type': 'application/json'
+  // Send an initial response within 25 seconds
+  const initialResponse = new Response(
+    JSON.stringify({ message: "Request received. Processing..." }),
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+      },
     }
-  })
-  await initialResponse.send()
+  )
+  await initialResponse.flush()
 
   try {
     const supabaseAdmin = createClient<Database>(
@@ -57,14 +60,11 @@ export async function POST(request: Request) {
       })
 
       const assistantMessage = response.choices[0].message.content
-
-      // Send the complete response to the client
-      await fetch(request.url, {
-        method: 'POST',
+      return new Response(assistantMessage, {
+        status: 200,
         headers: {
           'Content-Type': 'text/plain'
-        },
-        body: assistantMessage
+        }
       })
     } else {
       // Process response for other custom models with streaming
@@ -76,15 +76,7 @@ export async function POST(request: Request) {
       })
 
       const stream = OpenAIStream(response)
-
-      // Send the streaming response to the client
-      await fetch(request.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain'
-        },
-        body: stream
-      })
+      return new StreamingTextResponse(stream)
     }
   } catch (error: any) {
     let errorMessage = error.message || "An unexpected error occurred"
@@ -98,12 +90,11 @@ export async function POST(request: Request) {
         "Custom API Key is incorrect. Please fix it in your profile settings."
     }
 
-    await fetch(request.url, {
-      method: 'POST',
+    return new Response(JSON.stringify({ message: errorMessage }), {
+      status: errorCode,
       headers: {
         'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ message: errorMessage })
+      }
     })
   }
 }
