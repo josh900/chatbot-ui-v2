@@ -7,6 +7,8 @@ import OpenAI from "openai"
 import { ChatCompletionCreateParamsBase } from "openai/resources/chat/completions.mjs"
 import { ChatClientBase } from "../ChatClientBase"
 
+export const runtime = "edge"
+
 export class CustomChatClient extends ChatClientBase {
   private customOpenAI: OpenAI | undefined
 
