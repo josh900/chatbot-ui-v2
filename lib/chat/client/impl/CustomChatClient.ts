@@ -46,7 +46,7 @@ export class CustomChatClient extends ChatClientBase {
       throw new Error("Custom OpenAI client is not initialized")
     }
 
-    if (this.customOpenAI.baseURL.includes("https://skoop.app.n8n.cloud")) {
+    if (this.customOpenAI.baseURL.includes("https://n8n.skoop.digital")) {
       // Process response for custom models hosted on skoop.app.n8n.cloud
       return this.customOpenAI.chat.completions.create({
         model: chatSettings.model as ChatCompletionCreateParamsBase["model"],
@@ -71,7 +71,7 @@ export class CustomChatClient extends ChatClientBase {
   ): Promise<StreamingTextResponse> {
     const response = await this.generateChatCompletion(chatSettings, messages)
 
-    if (this.customOpenAI?.baseURL.includes("https://skoop.app.n8n.cloud")) {
+    if (this.customOpenAI?.baseURL.includes("https://n8n.skoop.digital")) {
       const assistantMessage = response.choices[0].message.content
       return new StreamingTextResponse(assistantMessage)
     } else {
