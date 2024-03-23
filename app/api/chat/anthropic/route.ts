@@ -108,27 +108,23 @@ export async function POST(request: NextRequest) {
     }
   } catch (error: any) {
     console.error("Error calling Anthropic API:", error)
+
+    let errorMessage = error.message || "An unexpected error occurred"
+    const errorCode = error.status || 500
+
+    if (errorMessage.toLowerCase().includes("api key not found")) {
+      errorMessage =
+        "Anthropic API Key not found. Please set it in your profile settings."
+    } else if (errorCode === 401) {
+      errorMessage =
+        "Anthropic API Key is incorrect. Please fix it in your profile settings."
+    }
+
     return new NextResponse(
       JSON.stringify({
-        message: "An error occurred while calling the Anthropic API"
+        message: errorMessage
       }),
-      { status: 500 }
+      { status: errorCode }
     )
   }
-} catch (error: any) {
-  let errorMessage = error.message || "An unexpected error occurred"
-  const errorCode = error.status || 500
-
-  if (errorMessage.toLowerCase().includes("api key not found")) {
-    errorMessage =
-      "Anthropic API Key not found. Please set it in your profile settings."
-  } else if (errorCode === 401) {
-    errorMessage =
-      "Anthropic API Key is incorrect. Please fix it in your profile settings."
-  }
-
-  return new NextResponse(JSON.stringify({ message: errorMessage }), {
-    status: errorCode
-  })
-}
 }
