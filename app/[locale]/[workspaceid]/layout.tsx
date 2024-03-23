@@ -29,7 +29,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const router = useRouter()
 
   const params = useParams()
-  const workspaceId = params.workspaceid as string
+  const workspaceId = params?.workspaceid as string | undefined
 
   const {
     setChatSettings,
@@ -61,54 +61,64 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    ;(async () => {
-      const session = (await supabase.auth.getSession()).data.session
-
-      if (!session) {
-        return router.push("/login")
-      } else {
-        await fetchWorkspaceData(workspaceId)
-      }
-    })()
-  }, [])
+    if (workspaceId) {
+      fetchWorkspaceData(workspaceId);
+    }
+  }, [workspaceId]);
 
   useEffect(() => {
-    ;(async () => await fetchWorkspaceData(workspaceId))()
+    (async () => {
+      const session = (await supabase.auth.getSession()).data.session;
 
-    setUserInput("")
-    setChatMessages([])
-    setSelectedChat(null)
+      if (!session) {
+        return router.push("/login");
+      } else {
+        await fetchWorkspaceData(workspaceId);
+      }
+    })();
+  }, []);
 
-    setIsGenerating(false)
-    setFirstTokenReceived(false)
+  useEffect(() => {
+    if (workspaceId) {
+      (async () => await fetchWorkspaceData(workspaceId))();
+    }
 
-    setChatFiles([])
-    setChatImages([])
-    setNewMessageFiles([])
-    setNewMessageImages([])
-    setShowFilesDisplay(false)
-  }, [workspaceId])
+    setUserInput("");
+    setChatMessages([]);
+    setSelectedChat(null);
 
-  const fetchWorkspaceData = async (workspaceId: string) => {
-    setLoading(true)
+    setIsGenerating(false);
+    setFirstTokenReceived(false);
 
-    const workspace = await getWorkspaceById(workspaceId)
-    setSelectedWorkspace(workspace)
+    setChatFiles([]);
+    setChatImages([]);
+    setNewMessageFiles([]);
+    setNewMessageImages([]);
+    setShowFilesDisplay(false);
+  }, [workspaceId]);
 
-    const assistantData = await getAssistantWorkspacesByWorkspaceId(workspaceId)
-    setAssistants(assistantData.assistants)
+  const fetchWorkspaceData = async (workspaceId: string | undefined) => {
+    if (!workspaceId) return; // Return early if workspaceId is undefined
+
+    setLoading(true);
+
+    const workspace = await getWorkspaceById(workspaceId);
+    setSelectedWorkspace(workspace);
+
+    const assistantData = await getAssistantWorkspacesByWorkspaceId(workspaceId);
+    setAssistants(assistantData.assistants);
 
     for (const assistant of assistantData.assistants) {
-      let url = ""
+      let url = "";
 
       if (assistant.image_path) {
-        url = (await getAssistantImageFromStorage(assistant.image_path)) || ""
+        url = (await getAssistantImageFromStorage(assistant.image_path)) || "";
       }
 
       if (url) {
-        const response = await fetch(url)
-        const blob = await response.blob()
-        const base64 = await convertBlobToBase64(blob)
+        const response = await fetch(url);
+        const blob = await response.blob();
+        const base64 = await convertBlobToBase64(blob);
 
         setAssistantImages(prev => [
           ...prev,
@@ -118,7 +128,7 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             base64,
             url
           }
-        ])
+        ]);
       } else {
         setAssistantImages(prev => [
           ...prev,
@@ -128,56 +138,51 @@ export default function WorkspaceLayout({ children }: WorkspaceLayoutProps) {
             base64: "",
             url
           }
-        ])
+        ]);
       }
     }
 
-    const chats = await getChatsByWorkspaceId(workspaceId)
-    setChats(chats)
+    const chats = await getChatsByWorkspaceId(workspaceId);
+    setChats(chats);
 
-    const collectionData =
-      await getCollectionWorkspacesByWorkspaceId(workspaceId)
-    setCollections(collectionData.collections)
+    const collectionData = await getCollectionWorkspacesByWorkspaceId(workspaceId);
+    setCollections(collectionData.collections);
 
-    const folders = await getFoldersByWorkspaceId(workspaceId)
-    setFolders(folders)
+    const folders = await getFoldersByWorkspaceId(workspaceId);
+    setFolders(folders);
 
-    const fileData = await getFileWorkspacesByWorkspaceId(workspaceId)
-    setFiles(fileData.files)
+    const fileData = await getFileWorkspacesByWorkspaceId(workspaceId);
+    setFiles(fileData.files);
 
-    const presetData = await getPresetWorkspacesByWorkspaceId(workspaceId)
-    setPresets(presetData.presets)
+    const presetData = await getPresetWorkspacesByWorkspaceId(workspaceId);
+    setPresets(presetData.presets);
 
-    const promptData = await getPromptWorkspacesByWorkspaceId(workspaceId)
-    setPrompts(promptData.prompts)
+    const promptData = await getPromptWorkspacesByWorkspaceId(workspaceId);
+    setPrompts(promptData.prompts);
 
-    const toolData = await getToolWorkspacesByWorkspaceId(workspaceId)
-    setTools(toolData.tools)
-    setPlatformTools(platformToolDefinitions())
+    const toolData = await getToolWorkspacesByWorkspaceId(workspaceId);
+    setTools(toolData.tools);
+    setPlatformTools(platformToolDefinitions());
 
-    const modelData = await getModelWorkspacesByWorkspaceId(workspaceId)
-    setModels(modelData.models)
+    const modelData = await getModelWorkspacesByWorkspaceId(workspaceId);
+    setModels(modelData.models);
 
     setChatSettings({
       model: (workspace?.default_model || "gpt-4-1106-preview") as LLMID,
-      prompt:
-        workspace?.default_prompt ||
-        "You are a friendly, helpful AI assistant.",
+      prompt: workspace?.default_prompt || "You are a friendly, helpful AI assistant.",
       temperature: workspace?.default_temperature || 0.5,
       contextLength: workspace?.default_context_length || 4096,
       includeProfileContext: workspace?.include_profile_context || true,
-      includeWorkspaceInstructions:
-        workspace?.include_workspace_instructions || true,
-      embeddingsProvider:
-        (workspace?.embeddings_provider as "openai" | "local") || "openai"
-    })
+      includeWorkspaceInstructions: workspace?.include_workspace_instructions || true,
+      embeddingsProvider: (workspace?.embeddings_provider as "openai" | "local") || "openai"
+    });
 
-    setLoading(false)
-  }
+    setLoading(false);
+  };
 
   if (loading) {
-    return <Loading />
+    return <Loading />;
   }
 
-  return <Dashboard>{children}</Dashboard>
+  return <Dashboard>{children}</Dashboard>;
 }
