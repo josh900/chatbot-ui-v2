@@ -223,7 +223,10 @@ export const handleHostedChat = async (
   }
 
   const apiEndpoint =
-    provider === "custom" ? "/api/chat/custom" : `/api/chat/${provider}`
+    modelData?.provider === "custom" &&
+    modelData.hostedId.startsWith("n8n.skoop.digital")
+      ? "/api/chat/custom"
+      : `/api/chat/${modelData?.provider}`
 
   const requestBody = {
     chatSettings: payload.chatSettings,
