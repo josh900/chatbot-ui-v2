@@ -14,7 +14,8 @@ export class OpenAIChatClient extends ChatClientBase {
     checkApiKey(profile.openai_api_key, "OpenAI")
     this.openai = new OpenAI({
       apiKey: profile.openai_api_key || "",
-      organization: profile.openai_organization_id
+      organization: profile.openai_organization_id,
+	  ...(process.env.ENDPOINT_OPENAI && { baseURL: process.env.ENDPOINT_OPENAI })
     })
   }
 
